@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS Email — April 2026 · Performance Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0efe9;color:#1a1a18;font-size:13px;line-height:1.5;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+
+/* ── TOP NAV ── */
+.topnav{background:#1a1a18;padding:0 20px;flex-shrink:0;display:flex;align-items:stretch}
+.nav-title{padding:13px 18px 13px 0;font-size:13px;font-weight:500;color:#fff;border-right:.5px solid #333;margin-right:4px;white-space:nowrap}
+.nav-meta{padding:13px 0;font-size:11px;color:#555;margin-left:10px;align-self:center}
+
+/* ── FILTER BAR ── */
+.filterbar{background:#fff;border-bottom:.5px solid #e0dfd9;padding:9px 20px;flex-shrink:0}
+.filter-inner{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end}
+.fg{display:flex;flex-direction:column;gap:3px}
+.fl{font-size:10px;font-weight:500;color:#888780;text-transform:uppercase;letter-spacing:.05em}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tab{padding:4px 12px;border-radius:20px;border:.5px solid #c8c7be;background:#f5f4f0;color:#5f5e5a;font-size:11px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.tab:hover{background:#eeeee8}
+.tab.active{background:#1a1a18;color:#fff;border-color:#1a1a18;font-weight:500}
+.asel{padding:4px 26px 4px 11px;border-radius:20px;border:.5px solid #c8c7be;background:#f5f4f0 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%23888780' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 9px center;color:#1a1a18;font-size:11px;cursor:pointer;min-width:150px;appearance:none;-webkit-appearance:none}
+.asel:focus{outline:none;border-color:#1a1a18}
+
+/* ── BODY: TWO COLUMNS ── */
+.body-wrap{display:flex;flex:1;overflow:hidden}
+
+/* LEFT PANE */
+.left-pane{width:63%;flex-shrink:0;overflow-y:auto;display:flex;flex-direction:column;border-right:.5px solid #e0dfd9}
+.left-pane::-webkit-scrollbar{width:4px}
+.left-pane::-webkit-scrollbar-thumb{background:#d3d1c7;border-radius:2px}
+
+/* Chart strip above table */
+.chart-strip{flex-shrink:0;background:#fff;border-bottom:.5px solid #e5e4de;padding:14px 20px 12px}
+.chart-strip-inner{display:flex;align-items:center;gap:20px}
+.chart-legend{display:flex;gap:12px}
+.chart-legend span{display:flex;align-items:center;gap:4px;font-size:11px;color:#888780}
+.lsq{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+.chart-canvas-wrap{flex:1;position:relative;height:80px}
+.chart-strip-label{font-size:10px;font-weight:600;color:#888780;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;margin-bottom:4px}
+
+/* Scorecard section */
+.sc-section{flex:1;padding:14px 20px 24px}
+.sec-label{font-size:10px;font-weight:600;color:#888780;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+
+/* RIGHT PANE */
+.right-pane{flex:1;overflow-y:auto;padding:14px 16px 24px;display:flex;flex-direction:column;gap:12px}
+.right-pane::-webkit-scrollbar{width:4px}
+.right-pane::-webkit-scrollbar-thumb{background:#d3d1c7;border-radius:2px}
+
+/* ── METRIC CARDS ── */
+.metric-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:0}
+.mc{border-radius:10px;padding:11px 13px;border:.5px solid transparent}
+.mc .ml{font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;opacity:.7;margin-bottom:2px}
+.mc .mv{font-size:24px;font-weight:500;line-height:1.1}
+.mc .ms{font-size:11px;margin-top:2px;opacity:.65}
+.mc-blue{background:#EEF5FD;border-color:#B5D4F4;color:#185FA5}
+.mc-green{background:#EAF3DE;border-color:#C0DD97;color:#3B6D11}
+.mc-red{background:#FCEBEB;border-color:#F7C1C1;color:#A32D2D}
+
+/* ── SIDE CARDS ── */
+.side-card{background:#fff;border-radius:10px;border:.5px solid #ddd;padding:12px 14px}
+.side-label{font-size:10px;font-weight:600;color:#888780;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+
+.agent-item{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:.5px solid #f5f4f0}
+.agent-item:last-child{border-bottom:none}
+.av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0;letter-spacing:.02em}
+.av-g{background:#EAF3DE;color:#3B6D11}
+.av-a{background:#FAEEDA;color:#854F0B}
+.av-r{background:#FCEBEB;color:#A32D2D}
+.ai-name{font-weight:500;font-size:12px;color:#1a1a18;flex:1;min-width:0}
+.prog-wrap{width:100px;height:4px;background:#f0efe8;border-radius:3px;flex-shrink:0}
+.prog-bar{height:4px;border-radius:3px}
+.ai-score{font-size:16px;font-weight:600;margin-left:8px;min-width:28px;text-align:right;flex-shrink:0}
+
+/* ── SCORECARD TABLE ── */
+.sc-table-wrap{overflow-x:auto}
+table.sct{border-collapse:collapse;font-size:11px;width:100%;min-width:700px}
+.tg th{font-size:9px;font-weight:600;color:#fff;text-align:center;padding:4px 6px;white-space:nowrap}
+.tc th{font-size:10px;font-weight:500;color:#5f5e5a;text-align:center;padding:4px 5px;border-bottom:.5px solid #e5e4de;white-space:nowrap;background:#fafaf7}
+.tt td{font-size:10px;font-weight:600;color:#185FA5;text-align:center;padding:4px 5px;border-bottom:2px solid #378ADD;background:#EEF5FD;white-space:nowrap}
+.tt td.ttl{text-align:left;padding-left:8px;font-weight:700}
+.tt-sc{display:inline-block;background:#378ADD;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px;font-weight:700}
+table.sct tbody td{padding:7px 5px;border-bottom:.5px solid #f0efe8;text-align:center;white-space:nowrap}
+table.sct tbody td.ca{text-align:left;font-weight:500;padding-left:8px}
+table.sct tbody td.cr{color:#888780;font-size:10px;padding-left:6px}
+table.sct tbody td.cn{text-align:left;white-space:normal;min-width:110px;max-width:160px;font-size:10px;padding:6px 8px}
+table.sct tbody tr:hover td{background:#fafaf7}
+table.sct tbody tr.adm-r td{background:#fafaf7;color:#888780}
+
+.sp-ex{background:#EAF3DE;color:#3B6D11;font-weight:600;border-radius:3px;padding:1px 5px;font-size:11px}
+.sp-gs{background:#E6F1FB;color:#185FA5;font-weight:600;border-radius:3px;padding:1px 5px;font-size:11px}
+.sp-ni{background:#FAEEDA;color:#854F0B;font-weight:600;border-radius:3px;padding:1px 5px;font-size:11px}
+.sp-cm{background:#FCEBEB;color:#A32D2D;font-weight:600;border-radius:3px;padding:1px 5px;font-size:11px}
+.sp-adm{background:#f0efe8;color:#888780;font-weight:500;border-radius:3px;padding:1px 5px;font-size:11px}
+
+.badge{display:inline-block;font-size:9px;font-weight:500;padding:1px 7px;border-radius:20px;white-space:nowrap}
+.b-ex{background:#EAF3DE;color:#3B6D11}
+.b-gs{background:#E6F1FB;color:#185FA5}
+.b-ni{background:#FAEEDA;color:#854F0B}
+.b-cm{background:#FCEBEB;color:#A32D2D}
+.b-adm{background:#f0efe8;color:#5f5e5a}
+.hit{color:#3B6D11;font-weight:500}
+.miss{color:#A32D2D}
+.note-sm{font-size:10px;color:#b4b2a9;margin-top:8px}
+.empty-txt{color:#b4b2a9;font-size:12px;padding:6px 0}
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<div class="topnav">
+  <div class="nav-title">CS Email · April 2026 · Performance Dashboard</div>
+  <div class="nav-meta">Target score: 85 &nbsp;·&nbsp; 15 agents</div>
+</div>
+
+<!-- FILTER BAR -->
+<div class="filterbar">
+  <div class="filter-inner">
+    <div class="fg">
+      <div class="fl">Period</div>
+      <div class="tabs" id="weekTabs">
+        <button class="tab active" data-week="all">April Overview</button>
+        <button class="tab" data-week="0">W1 · Mar 30</button>
+        <button class="tab" data-week="1">W2 · Apr 6</button>
+        <button class="tab" data-week="2">W3 · Apr 13</button>
+        <button class="tab" data-week="3">W4 · Apr 20</button>
+        <button class="tab" data-week="4">W5 · Apr 27</button>
+      </div>
+    </div>
+    <div class="fg">
+      <div class="fl">Agent</div>
+      <select class="asel" id="agentSel"><option value="all">All agents</option></select>
+    </div>
+  </div>
+</div>
+
+<!-- BODY -->
+<div class="body-wrap">
+
+  <!-- ══ LEFT: CHART + SCORECARD ══ -->
+  <div class="left-pane">
+
+    <!-- Chart strip -->
+    <div class="chart-strip" id="chartStrip">
+      <div class="chart-strip-label">Weekly team average</div>
+      <div class="chart-strip-inner">
+        <div class="chart-legend">
+          <span><span class="lsq" style="background:#85B7EB;"></span>Team avg</span>
+          <span><span class="lsq" style="background:#E24B4A;opacity:.7;"></span>Target (85)</span>
+        </div>
+        <div class="chart-canvas-wrap">
+          <canvas id="trendChart" role="img" aria-label="Weekly team averages">W1–W5</canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scorecard table -->
+    <div class="sc-section">
+      <div class="sec-label" id="scTitle">Agent scorecard — April Overview</div>
+      <div class="sc-table-wrap">
+        <table class="sct">
+          <thead>
+            <tr class="tg" id="tgRow"></tr>
+            <tr class="tc" id="tcRow"></tr>
+            <tr class="tt" id="ttRow"></tr>
+          </thead>
+          <tbody id="scTbody"></tbody>
+        </table>
+      </div>
+      <p class="note-sm">Green = at/above target · Red = below target · Admin rows excluded from rankings.</p>
+    </div>
+  </div>
+
+  <!-- ══ RIGHT: OVERVIEW CARDS ══ -->
+  <div class="right-pane">
+
+    <!-- Summary metric cards -->
+    <div>
+      <div class="side-label">Summary</div>
+      <div class="metric-cards" id="metricCards"></div>
+    </div>
+
+    <!-- Top Performers -->
+    <div class="side-card">
+      <div class="side-label">Top performers — ≥ 85</div>
+      <div id="topList"></div>
+    </div>
+
+    <!-- Needs Improvement -->
+    <div class="side-card">
+      <div class="side-label">Needs improvement — 70 to 84</div>
+      <div id="niList"></div>
+    </div>
+
+    <!-- Needs Attention -->
+    <div class="side-card">
+      <div class="side-label">Needs attention — below 70</div>
+      <div id="attnList"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const DATA=[
+  {a:"Zia",d:[
+    {csat:5.0,qa:30.0,hs:61,tck:145,msg:270,frt:"0:03:49",art:"0:14:08",tph:7.20,mph:13.41,score:75},
+    {csat:4.9,qa:48.7,hs:65,tck:130,msg:287,frt:"0:02:16",art:"0:09:31",tph:6.02,mph:13.30,score:86},
+    {csat:4.8,qa:49.3,hs:65,tck:104,msg:226,frt:"0:04:38",art:"0:10:55",tph:4.72,mph:10.25,score:79},
+    {csat:4.0,qa:48.7,hs:63,tck:109,msg:221,frt:"0:01:29",art:"0:09:27",tph:4.53,mph:9.18,score:68},
+    {csat:3.9,qa:16.3,hs:82,tck:171,msg:395,frt:"0:02:16",art:"0:05:29",tph:7.10,mph:15.51,score:62},
+  ]},
+  {a:"Sandra",d:[
+    {csat:3.9,qa:44.0,hs:65,tck:97,msg:211,frt:"0:10:56",art:"0:16:11",tph:3.66,mph:7.97,score:57},
+    {csat:4.6,qa:48.3,hs:64,tck:116,msg:269,frt:"0:04:47",art:"0:08:22",tph:5.56,mph:12.90,score:81},
+    {csat:3.8,qa:47.0,hs:72,tck:96,msg:221,frt:"0:05:56",art:"0:09:36",tph:4.95,mph:11.39,score:65},
+    {csat:5.0,qa:45.3,hs:72,tck:88,msg:191,frt:"0:06:32",art:"0:12:18",tph:4.75,mph:10.31,score:78},
+    {csat:4.1,qa:33.3,hs:73,tck:98,msg:223,frt:"0:09:17",art:"0:12:28",tph:5.10,mph:11.62,score:59},
+  ]},
+  {a:"Nina",d:[
+    {csat:4.3,qa:31.0,hs:85,tck:100,msg:225,frt:"0:02:11",art:"0:08:33",tph:5.87,mph:13.22,score:67},
+    {csat:5.0,qa:16.7,hs:86,tck:70,msg:148,frt:"0:03:45",art:"0:13:36",tph:5.65,mph:11.95,score:60},
+    {csat:3.1,qa:0.0,hs:82,tck:92,msg:238,frt:"0:01:47",art:"0:08:10",tph:4.92,mph:12.72,score:38},
+    {csat:4.3,qa:43.0,hs:80,tck:102,msg:258,frt:"0:01:27",art:"0:05:25",tph:4.23,mph:10.71,score:77},
+    {csat:4.1,qa:49.7,hs:85,tck:119,msg:298,frt:"0:01:04",art:"0:06:21",tph:4.14,mph:10.60,score:74},
+  ]},
+  {a:"Mary",d:[
+    {csat:4.6,qa:47.7,hs:60,tck:182,msg:420,frt:"0:02:08",art:"0:03:21",tph:9.34,mph:21.55,score:91},
+    {csat:4.7,qa:33.3,hs:63,tck:188,msg:438,frt:"0:03:00",art:"0:03:19",tph:10.08,mph:23.49,score:78},
+    {csat:4.7,qa:47.3,hs:69,tck:214,msg:520,frt:"0:01:55",art:"0:03:03",tph:10.63,mph:25.83,score:95},
+    {csat:4.7,qa:40.0,hs:63,tck:209,msg:511,frt:"0:01:08",art:"0:01:59",tph:10.79,mph:26.38,score:91},
+    {csat:4.2,qa:50.0,hs:60,tck:222,msg:581,frt:"0:01:12",art:"0:01:51",tph:8.24,mph:21.81,score:86},
+  ]},
+  {a:"Maricar",d:[
+    {csat:3.7,qa:49.0,hs:66,tck:123,msg:254,frt:"0:13:05",art:"0:26:17",tph:5.29,mph:10.92,score:59},
+    {csat:5.0,qa:48.3,hs:62,tck:118,msg:223,frt:"0:13:33",art:"0:18:08",tph:4.39,mph:8.30,score:78},
+    {csat:4.6,qa:40.3,hs:65,tck:129,msg:257,frt:"0:12:04",art:"0:14:14",tph:4.41,mph:8.79,score:78},
+    {csat:4.1,qa:42.3,hs:66,tck:120,msg:254,frt:"0:10:04",art:"0:13:54",tph:4.71,mph:9.96,score:70},
+    {csat:4.6,qa:33.3,hs:63,tck:107,msg:238,frt:"0:11:02",art:"0:10:51",tph:4.29,mph:9.53,score:63},
+  ]},
+  {a:"Lei",d:[
+    {csat:4.9,qa:47.7,hs:84,tck:160,msg:339,frt:"0:04:58",art:"0:07:36",tph:7.60,mph:16.10,score:95},
+    {csat:4.1,qa:49.3,hs:84,tck:174,msg:383,frt:"0:02:44",art:"0:04:12",tph:8.23,mph:18.13,score:86},
+    {csat:4.9,qa:33.3,hs:85,tck:141,msg:348,frt:"0:00:00",art:"0:01:30",tph:7.03,mph:17.35,score:80},
+    {csat:4.7,qa:45.7,hs:86,tck:152,msg:408,frt:"0:00:00",art:"0:01:16",tph:6.66,mph:17.89,score:92},
+    {csat:4.7,qa:50.0,hs:88,tck:247,msg:678,frt:"0:00:00",art:"0:01:09",tph:9.36,mph:25.47,score:98},
+  ]},
+  {a:"Krisha",d:[
+    {csat:3.8,qa:49.3,hs:69,tck:136,msg:274,frt:"0:04:31",art:"0:08:08",tph:5.75,mph:11.58,score:71},
+    {csat:5.0,qa:50.0,hs:66,tck:102,msg:247,frt:"0:03:12",art:"0:07:59",tph:4.75,mph:11.50,score:81},
+    {csat:4.8,qa:50.0,hs:66,tck:73,msg:183,frt:"0:05:21",art:"0:09:04",tph:3.82,mph:9.58,score:71},
+    {csat:4.5,qa:49.3,hs:63,tck:70,msg:190,frt:"0:03:04",art:"0:08:29",tph:4.04,mph:10.98,score:72},
+    {csat:5.0,qa:50.0,hs:62,tck:64,msg:158,frt:"0:02:38",art:"0:05:32",tph:4.63,mph:11.42,score:75},
+  ]},
+  {a:"Justine",d:[
+    {csat:4.6,qa:49.3,hs:67,tck:155,msg:325,frt:"0:04:27",art:"0:07:19",tph:7.91,mph:16.59,score:92},
+    {csat:4.8,qa:49.0,hs:63,tck:142,msg:305,frt:"0:03:15",art:"0:05:50",tph:7.31,mph:15.70,score:88},
+    {csat:4.5,qa:46.3,hs:45,tck:145,msg:289,frt:"0:04:05",art:"0:05:49",tph:6.66,mph:13.28,score:76},
+    {csat:5.0,qa:38.7,hs:50,tck:191,msg:428,frt:"0:04:06",art:"0:06:37",tph:8.40,mph:18.83,score:84},
+    {csat:4.3,qa:39.7,hs:50,tck:208,msg:452,frt:"0:03:06",art:"0:05:38",tph:7.85,mph:16.75,score:76},
+  ]},
+  {a:"Jude",d:[
+    {csat:4.6,qa:30.3,hs:76,tck:212,msg:348,frt:"0:05:08",art:"0:07:13",tph:7.12,mph:11.68,score:81},
+    {csat:4.4,qa:15.0,hs:76,tck:192,msg:288,frt:"0:06:15",art:"0:07:33",tph:6.89,mph:10.33,score:66},
+    {csat:4.5,qa:35.7,hs:77,tck:211,msg:350,frt:"0:07:40",art:"0:08:18",tph:7.93,mph:13.15,score:86},
+    {csat:4.6,qa:29.3,hs:76,tck:330,msg:567,frt:"0:07:36",art:"0:07:26",tph:10.73,mph:18.43,score:83},
+    {csat:4.4,qa:37.0,hs:82,tck:240,msg:444,frt:"0:06:53",art:"0:07:26",tph:10.19,mph:18.36,score:88},
+  ]},
+  {a:"Jordan",d:[
+    {csat:4.5,qa:48.3,hs:66,tck:231,msg:429,frt:"0:10:44",art:"0:16:51",tph:8.16,mph:15.15,score:94},
+    {csat:4.8,qa:50.0,hs:62,tck:194,msg:379,frt:"0:09:29",art:"0:14:47",tph:7.19,mph:14.04,score:92},
+    {csat:4.7,qa:34.7,hs:67,tck:233,msg:441,frt:"0:16:10",art:"0:17:51",tph:7.82,mph:14.80,score:82},
+    {csat:4.4,qa:36.3,hs:65,tck:220,msg:422,frt:"0:12:31",art:"0:13:54",tph:6.47,mph:12.41,score:82},
+    {csat:3.8,qa:45.0,hs:68,tck:247,msg:440,frt:"0:11:52",art:"0:15:49",tph:7.63,mph:12.84,score:70},
+  ]},
+  {a:"Jesthel",d:[
+    {csat:3.7,qa:44.3,hs:57,tck:176,msg:326,frt:"0:06:39",art:"0:09:51",tph:5.62,mph:10.41,score:60},
+    {csat:4.7,qa:48.3,hs:64,tck:192,msg:418,frt:"0:06:16",art:"0:08:35",tph:7.40,mph:16.12,score:91},
+    {csat:4.2,qa:40.3,hs:59,tck:176,msg:349,frt:"0:08:46",art:"0:09:46",tph:8.38,mph:16.61,score:79},
+    {csat:4.7,qa:31.3,hs:54,tck:154,msg:292,frt:"0:09:24",art:"0:09:21",tph:7.58,mph:14.37,score:75},
+    {csat:3.8,qa:42.3,hs:59,tck:187,msg:344,frt:"0:06:54",art:"0:08:32",tph:9.39,mph:17.41,score:64},
+  ]},
+  {a:"Jerel",d:[
+    {csat:5.0,qa:32.0,hs:70,tck:120,msg:279,frt:"0:01:14",art:"0:06:19",tph:6.42,mph:14.93,score:77},
+    {csat:4.6,qa:48.7,hs:77,tck:115,msg:295,frt:"0:01:38",art:"0:03:20",tph:6.61,mph:16.95,score:87},
+    {csat:4.8,qa:25.7,hs:84,tck:206,msg:585,frt:"0:01:11",art:"0:02:27",tph:8.20,mph:23.27,score:84},
+    {csat:4.8,qa:27.3,hs:78,tck:152,msg:440,frt:"0:01:58",art:"0:02:37",tph:6.16,mph:17.84,score:80},
+    {csat:4.2,qa:27.3,hs:81,tck:150,msg:431,frt:"0:01:10",art:"0:01:59",tph:5.63,mph:17.16,score:70},
+  ]},
+  {a:"Earl",d:[
+    {csat:4.3,qa:29.3,hs:81,tck:204,msg:391,frt:"0:08:31",art:"0:10:37",tph:7.26,mph:13.91,score:77},
+    {csat:4.6,qa:32.0,hs:88,tck:178,msg:364,frt:"0:05:16",art:"0:07:28",tph:6.11,mph:12.50,score:78},
+    {csat:4.1,qa:10.7,hs:86,tck:198,msg:457,frt:"0:03:39",art:"0:06:53",tph:7.01,mph:16.18,score:68},
+    {csat:4.4,qa:48.0,hs:87,tck:134,msg:289,frt:"0:03:55",art:"0:06:19",tph:6.79,mph:14.64,score:85},
+    {csat:5.0,qa:24.0,hs:86,tck:207,msg:497,frt:"0:04:48",art:"0:07:01",tph:6.21,mph:14.64,score:78},
+  ]},
+  {a:"Carla",d:[
+    {csat:4.5,qa:46.3,hs:82,tck:102,msg:232,frt:"0:02:44",art:"0:04:57",tph:4.80,mph:10.92,score:79},
+    {csat:4.0,qa:31.0,hs:81,tck:80,msg:195,frt:"0:01:05",art:"0:02:50",tph:4.49,mph:10.94,score:57},
+    {csat:4.3,qa:33.3,hs:84,tck:82,msg:219,frt:"0:00:00",art:"0:01:27",tph:4.30,mph:11.49,score:62},
+    {csat:4.9,qa:45.7,hs:80,tck:96,msg:244,frt:"0:00:00",art:"0:01:02",tph:4.17,mph:10.60,score:79},
+    {csat:4.5,qa:33.3,hs:83,tck:106,msg:262,frt:"0:01:56",art:"0:04:28",tph:4.41,mph:9.87,score:68},
+  ]},
+  {a:"Angelo",d:[
+    {csat:4.2,qa:46.3,hs:80,tck:247,msg:410,frt:"0:23:46",art:"0:20:03",tph:10.89,mph:18.08,score:86},
+    {csat:5.0,qa:16.0,hs:80,tck:226,msg:442,frt:"0:05:28",art:"0:07:45",tph:10.05,mph:19.66,score:80},
+    {csat:4.8,qa:39.0,hs:78,tck:244,msg:471,frt:"0:05:24",art:"0:07:18",tph:9.67,mph:18.67,score:89},
+    {csat:4.9,qa:28.7,hs:75,tck:166,msg:327,frt:"0:05:10",art:"0:06:06",tph:8.05,mph:15.85,score:81},
+    {csat:4.3,qa:20.0,hs:82,tck:258,msg:510,frt:"0:05:04",art:"0:05:51",tph:8.67,mph:17.16,score:74},
+  ]},
+  {a:"Denver",admin:true,d:[
+    {csat:5.0,qa:43.0,hs:67,tck:143,msg:193,frt:"0:31:42",art:"0:26:13",tph:10.47,mph:14.13,score:84},
+    {csat:5.0,qa:47.7,hs:68,tck:106,msg:168,frt:"0:12:36",art:"0:10:42",tph:7.46,mph:11.82,score:85},
+    {csat:5.0,qa:42.0,hs:61,tck:78,msg:135,frt:"0:06:07",art:"0:07:30",tph:5.77,mph:9.99,score:72},
+    {csat:4.8,qa:49.3,hs:55,tck:96,msg:170,frt:"0:01:51",art:"0:03:14",tph:5.33,mph:9.45,score:75},
+    {csat:5.0,qa:44.7,hs:61,tck:130,msg:218,frt:"2:20:00",art:"0:24:08",tph:7.99,mph:13.82,score:80},
+  ]},
+  {a:"Christian",admin:true,d:[
+    {csat:4.4,qa:31.7,hs:70,tck:198,msg:295,frt:"1:19:00",art:"1:30:00",tph:10.15,mph:15.12,score:68},
+    {csat:4.3,qa:48.0,hs:69,tck:80,msg:127,frt:"2:04:00",art:"2:04:00",tph:3.17,mph:5.03,score:55},
+    {csat:5.0,qa:null,hs:70,tck:19,msg:32,frt:"0:06:48",art:"0:26:56",tph:0.82,mph:1.38,score:48},
+    {csat:3.7,qa:null,hs:71,tck:55,msg:86,frt:"0:05:07",art:"0:08:12",tph:2.47,mph:3.87,score:24},
+    {csat:4.2,qa:null,hs:69,tck:51,msg:84,frt:"0:07:55",art:"0:09:23",tph:1.78,mph:3.10,score:38},
+  ]},
+  {a:"Luzel",admin:true,d:[
+    {csat:null,qa:33.3,hs:70,tck:null,msg:null,frt:null,art:null,tph:null,mph:null,score:30},
+    {csat:null,qa:50.0,hs:76,tck:22,msg:32,frt:"0:05:26",art:"0:11:42",tph:1.56,mph:2.27,score:40},
+    {csat:4.7,qa:45.0,hs:80,tck:69,msg:123,frt:"0:09:28",art:"0:12:11",tph:5.21,mph:9.29,score:75},
+    {csat:4.0,qa:50.0,hs:78,tck:68,msg:126,frt:"0:09:19",art:"0:12:04",tph:4.57,mph:8.47,score:67},
+    {csat:5.0,qa:50.0,hs:77,tck:58,msg:115,frt:"0:07:50",art:"0:12:09",tph:3.59,mph:7.11,score:73},
+  ]},
+];
+
+const WEEK_DATES=['Mar 30–Apr 5','Apr 6–12','Apr 13–19','Apr 20–26','Apr 27–May 3'];
+const T=85;
+const TG={csat:4.5,qa:40,hs:75,tck:150,msg:320,frt:600,art:900,tph:7.0,mph:14.0};
+let week='all',agent='all';
+let tChart=null;
+
+// Dropdown
+const sel=document.getElementById('agentSel');
+[...DATA].sort((a,b)=>a.a.localeCompare(b.a)).forEach(ag=>{
+  const o=document.createElement('option');
+  o.value=ag.a;o.textContent=ag.a+(ag.admin?' (Admin)':'');
+  sel.appendChild(o);
+});
+
+// ── HELPERS ──────────────────────────────────────────────────────────────
+function navg(arr){const v=arr.filter(x=>x!=null&&!isNaN(x));return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;}
+function toSec(t){if(!t||t==='—')return null;const p=t.split(':');return parseInt(p[0])*3600+parseInt(p[1])*60+parseInt(p[2]||0);}
+function secFmt(s){if(s==null)return'—';if(s===0)return'0m';const m=Math.floor(s/60),r=s%60;return r===0?`${m}m`:`${m}m ${r}s`;}
+function fmtT(t){return secFmt(toSec(t));}
+function fmtAvgT(arr){const v=arr.map(toSec).filter(x=>x!=null);return v.length?secFmt(Math.round(navg(v))):'—';}
+
+function getScore(ag,w){
+  if(w==='all'){const v=ag.d.map(r=>r.score).filter(x=>x!=null);return v.length?Math.round(navg(v)):null;}
+  return ag.d[+w]?.score??null;
+}
+function statusOf(s){if(s==null)return'';if(s>=90)return'Excellent';if(s>=85)return'Good standing';if(s>=70)return'Needs improvement';return'Coach & monitor';}
+function bCls(s){if(s>=90)return'b-ex';if(s>=85)return'b-gs';if(s>=70)return'b-ni';return'b-cm';}
+function scCls(s){if(s>=90)return'sp-ex';if(s>=85)return'sp-gs';if(s>=70)return'sp-ni';return'sp-cm';}
+function barC(s){if(s>=90)return'#639922';if(s>=85)return'#378ADD';if(s>=70)return'#EF9F27';return'#E24B4A';}
+function hc(v,tgt,lower){if(v==null||isNaN(v))return'';return(lower?v<=tgt:v>=tgt)?'hit':'miss';}
+
+function getSorted(w,af){
+  let list=DATA;
+  if(af&&af!=='all')list=list.filter(a=>a.a===af);
+  return [...list].map(ag=>({...ag,score:getScore(ag,w)}))
+    .filter(ag=>ag.score!=null).sort((a,b)=>b.score-a.score);
+}
+
+function getFlags(ag,w){
+  const f=[];
+  function chk(field,tgt,lower,lbl){
+    let v;
+    if(w==='all'){const arr=ag.d.map(d=>d[field]).filter(x=>x!=null&&!isNaN(x));if(!arr.length)return;v=navg(arr);}
+    else{v=ag.d[+w]?.[field];}
+    if(v==null||isNaN(v))return;
+    if(lower?v>tgt:v<tgt)f.push(lbl);
+  }
+  chk('csat',TG.csat,false,'CSAT');chk('qa',TG.qa,false,'QA');chk('hs',TG.hs,false,'Hubstaff');
+  chk('tck',TG.tck,false,'Tickets');chk('msg',TG.msg,false,'Messages');
+  const fv=w==='all'?navg(ag.d.map(d=>toSec(d.frt)).filter(x=>x!=null)):toSec(ag.d[+w]?.frt);
+  const av=w==='all'?navg(ag.d.map(d=>toSec(d.art)).filter(x=>x!=null)):toSec(ag.d[+w]?.art);
+  if(fv!=null&&fv>TG.frt)f.push('FRT');if(av!=null&&av>TG.art)f.push('ART');
+  chk('tph',TG.tph,false,'Tkt/Hr');chk('mph',TG.mph,false,'Msg/Hr');
+  return f;
+}
+
+// ── METRIC CARDS ─────────────────────────────────────────────────────────
+function renderCards(){
+  const core=getSorted(week,agent).filter(a=>!a.admin);
+  const scores=core.map(a=>a.score);
+  if(!scores.length){document.getElementById('metricCards').innerHTML='';return;}
+  const avg=Math.round(navg(scores));
+  const atT=scores.filter(s=>s>=T).length;
+  const hi=Math.max(...scores),lo=Math.min(...scores);
+  const hiN=core.find(a=>a.score===hi)?.a||'—';
+  const loN=core.find(a=>a.score===lo)?.a||'—';
+  document.getElementById('metricCards').innerHTML=[
+    {l:'Team avg',v:avg,s:'vs target 85',c:'mc-blue'},
+    {l:'At / above target',v:atT,s:'agents ≥85',c:'mc-blue'},
+    {l:'Highest',v:hi,s:hiN,c:'mc-green'},
+    {l:'Lowest',v:lo,s:loN,c:'mc-red'},
+  ].map(m=>`<div class="mc ${m.c}"><div class="ml">${m.l}</div><div class="mv">${m.v}</div><div class="ms">${m.s}</div></div>`).join('');
+}
+
+// ── TREND CHART ───────────────────────────────────────────────────────────
+function renderTrend(){
+  const show=agent==='all';
+  document.getElementById('chartStrip').style.display=show?'block':'none';
+  if(!show)return;
+  const avgs=[0,1,2,3,4].map(wi=>{
+    const v=DATA.filter(a=>!a.admin).map(ag=>ag.d[wi].score).filter(x=>x!=null);
+    return Math.round(navg(v));
+  });
+  if(tChart)tChart.destroy();
+  tChart=new Chart(document.getElementById('trendChart'),{
+    type:'bar',
+    data:{
+      labels:['W1','W2','W3','W4','W5'],
+      datasets:[
+        {label:'Team avg',data:avgs,backgroundColor:'#85B7EB',borderRadius:3,order:2,barPercentage:0.55},
+        {type:'line',label:'Target',data:[85,85,85,85,85],borderColor:'#E24B4A',borderDash:[5,3],borderWidth:1.5,pointRadius:0,fill:false,order:1}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.dataset.label+': '+ctx.raw}}},
+      scales:{
+        y:{min:55,max:100,ticks:{font:{size:9},color:'#888780',maxTicksLimit:4},grid:{color:'rgba(0,0,0,0.04)'}},
+        x:{ticks:{font:{size:9},color:'#888780'},grid:{display:false}}
+      }
+    }
+  });
+}
+
+// ── SIDE LISTS (no flags) ─────────────────────────────────────────────────
+function agentRow(ag, tier){
+  const sc=ag.score, pc=barC(sc);
+  const avCls=tier==='top'?'av-g':tier==='ni'?'av-a':'av-r';
+  return `<div class="agent-item">
+    <div class="av ${avCls}">${ag.a.slice(0,2).toUpperCase()}</div>
+    <div class="ai-name">${ag.a}</div>
+    <div class="prog-wrap"><div class="prog-bar" style="width:${Math.min(100,sc)}%;background:${pc};"></div></div>
+    <div class="ai-score" style="color:${pc};">${sc}</div>
+  </div>`;
+}
+
+function renderSideLists(){
+  const show=agent==='all';
+  document.querySelectorAll('.side-card').forEach(c=>c.style.display=show?'block':'none');
+  if(!show)return;
+  const core=getSorted(week,'all').filter(a=>!a.admin);
+  const top=core.filter(a=>a.score>=T);
+  const ni=core.filter(a=>a.score>=70&&a.score<T);
+  const attn=core.filter(a=>a.score<70);
+  const empty='<div class="empty-txt">None this period.</div>';
+  document.getElementById('topList').innerHTML=top.length?top.map(ag=>agentRow(ag,'top')).join(''):empty;
+  document.getElementById('niList').innerHTML=ni.length?ni.map(ag=>agentRow(ag,'ni')).join(''):empty;
+  document.getElementById('attnList').innerHTML=attn.length?attn.map(ag=>agentRow(ag,'attn')).join(''):empty;
+}
+
+// ── SCORECARD TABLE ───────────────────────────────────────────────────────
+function renderScorecard(){
+  const isAll=week==='all';
+  document.getElementById('scTitle').textContent=
+    isAll?'Agent scorecard — April Overview':'W'+(+week+1)+': '+WEEK_DATES[+week]+(agent!=='all'?' · '+agent:'');
+
+  const groups=[
+    {label:'',bg:'transparent',cols:['#','Agent']},
+    {label:'Quality',bg:'#3B6D11',cols:['CSAT','QA']},
+    {label:'Attend.',bg:'#185FA5',cols:['HS%']},
+    {label:'Volume',bg:'#534AB7',cols:['Tck','Msg']},
+    {label:'Speed',bg:'#854F0B',cols:['FRT','ART']},
+    {label:'Effic.',bg:'#0F6E56',cols:['T/Hr','M/Hr']},
+    {label:'',bg:'transparent',cols:['Score','Status','Flags']},
+  ];
+  const tgtVals=['','→','≥4.5','≥40','≥75%','≥150','≥320','≤10m','≤15m','≥7.0','≥14.0','≥85','—','—'];
+
+  const tgR=document.getElementById('tgRow'),tcR=document.getElementById('tcRow'),ttR=document.getElementById('ttRow');
+  tgR.innerHTML='';tcR.innerHTML='';ttR.innerHTML='';
+  let ci=0;
+  groups.forEach(g=>{
+    const th=document.createElement('th');
+    th.colSpan=g.cols.length;
+    th.style.background=g.bg==='transparent'?'#f5f4f0':g.bg;
+    th.style.color=g.bg==='transparent'?'transparent':'#fff';
+    th.style.borderRight='.5px solid #f5f4f0';
+    th.textContent=g.label;tgR.appendChild(th);
+    g.cols.forEach(c=>{
+      const tc=document.createElement('th');tc.textContent=c;tcR.appendChild(tc);
+      const td=document.createElement('td');
+      if(tgtVals[ci]==='→'){td.textContent='Target →';td.className='ttl';}
+      else if(tgtVals[ci]==='≥85'){td.innerHTML='<span class="tt-sc">≥85</span>';}
+      else{td.textContent=tgtVals[ci]||'';}
+      ttR.appendChild(td);ci++;
+    });
+  });
+
+  const rows=getSorted(week,agent);
+  const tbody=document.getElementById('scTbody');
+  if(!rows.length){tbody.innerHTML=`<tr><td colspan="14" style="text-align:center;padding:16px;color:#b4b2a9;">No data.</td></tr>`;return;}
+
+  let rank=0;
+  tbody.innerHTML=rows.map(ag=>{
+    const isAdm=!!ag.admin;
+    if(!isAdm)rank++;
+    const r=isAll?null:ag.d[+week];
+    function fv(f,d=1){
+      if(isAll){const v=ag.d.map(dd=>dd[f]).filter(x=>x!=null&&!isNaN(x));if(!v.length)return'—';const a=navg(v);return d===0?Math.round(a):a.toFixed(d);}
+      const v=r?.[f];return v==null?'—':(d===0?v:typeof v==='number'?v.toFixed(d):v);
+    }
+    function fvt(f){
+      if(isAll)return fmtAvgT(ag.d.map(dd=>dd[f]));
+      return fmtT(r?.[f]);
+    }
+    const cV=parseFloat(fv('csat')),qV=parseFloat(fv('qa')),hV=parseInt(fv('hs',0));
+    const tkV=parseInt(fv('tck',0)),mgV=parseInt(fv('msg',0));
+    const tpV=parseFloat(fv('tph')),mpV=parseFloat(fv('mph'));
+    const frtS=isAll?navg(ag.d.map(d=>toSec(d.frt)).filter(x=>x!=null)):toSec(r?.frt);
+    const artS=isAll?navg(ag.d.map(d=>toSec(d.art)).filter(x=>x!=null)):toSec(r?.art);
+    const sc=ag.score;
+    const flags=isAdm?'Perf. separately measured':getFlags(ag,week).join(', ')||'✓ All good';
+    const flagStyle=isAdm?'color:#888780;font-style:italic;':flags==='✓ All good'?'color:#3B6D11;':'color:#A32D2D;';
+
+    return `<tr class="${isAdm?'adm-r':''}">
+      <td class="cr">${isAdm?'—':rank}</td>
+      <td class="ca">${ag.a}${isAdm?' <span style="font-size:9px;color:#b4b2a9;font-weight:400;">(admin)</span>':''}</td>
+      <td class="${isAdm?'':hc(cV,TG.csat,false)}">${fv('csat')}</td>
+      <td class="${isAdm?'':hc(qV,TG.qa,false)}">${fv('qa')}</td>
+      <td class="${isAdm?'':hc(hV,TG.hs,false)}">${fv('hs',0)}%</td>
+      <td class="${isAdm?'':hc(tkV,TG.tck,false)}">${fv('tck',0)}</td>
+      <td class="${isAdm?'':hc(mgV,TG.msg,false)}">${fv('msg',0)}</td>
+      <td class="${isAdm?'':hc(frtS,TG.frt,true)}">${fvt('frt')}</td>
+      <td class="${isAdm?'':hc(artS,TG.art,true)}">${fvt('art')}</td>
+      <td class="${isAdm?'':hc(tpV,TG.tph,false)}">${fv('tph')}</td>
+      <td class="${isAdm?'':hc(mpV,TG.mph,false)}">${fv('mph')}</td>
+      <td><span class="${isAdm?'sp-adm':scCls(sc)}">${sc}</span></td>
+      <td>${isAdm?'<span class="badge b-adm">Admin</span>':`<span class="badge ${bCls(sc)}">${statusOf(sc)}</span>`}</td>
+      <td class="cn" style="${flagStyle}">${flags}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────
+function render(){
+  renderCards();
+  renderTrend();
+  renderSideLists();
+  renderScorecard();
+}
+
+document.getElementById('weekTabs').addEventListener('click',e=>{
+  const btn=e.target.closest('.tab');if(!btn)return;
+  document.querySelectorAll('#weekTabs .tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');week=btn.dataset.week;render();
+});
+document.getElementById('agentSel').addEventListener('change',e=>{agent=e.target.value;render();});
+
+render();
+</script>
+</body>
+</html>
